@@ -27,6 +27,7 @@ import org.catrobat.paintroid.R;
 import org.catrobat.paintroid.tools.implementation.GeometricFillTool;
 
 public class ShapeToolOptionsListener {
+	private GeometricFillTool.BaseShape shape;
 	private OnShapeToolOptionsChangedListener onShapeToolOptionsChangedListener;
 	private ImageButton squareButton;
 	private ImageButton circleButton;
@@ -35,6 +36,7 @@ public class ShapeToolOptionsListener {
 	private TextView shapeToolDialogTitle;
 
 	public ShapeToolOptionsListener(View shapeToolOptionsView) {
+		shape = GeometricFillTool.BaseShape.RECTANGLE;
 		squareButton = (ImageButton) shapeToolOptionsView.findViewById(R.id.shapes_square_btn);
 		circleButton = (ImageButton) shapeToolOptionsView.findViewById(R.id.shapes_circle_btn);
 		heartButton = (ImageButton) shapeToolOptionsView.findViewById(R.id.shapes_heart_btn);
@@ -42,7 +44,7 @@ public class ShapeToolOptionsListener {
 		shapeToolDialogTitle = (TextView) shapeToolOptionsView.findViewById(R.id.shape_tool_dialog_title);
 
 		initializeListeners();
-		setShapeActivated(GeometricFillTool.BaseShape.RECTANGLE);
+		setShapeActivated(shape);
 	}
 
 	private void initializeListeners() {
@@ -73,8 +75,12 @@ public class ShapeToolOptionsListener {
 	}
 
 	private void onShapeClicked(GeometricFillTool.BaseShape shape) {
+		if (this.shape == shape) {
+			return;
+		}
 		onShapeToolOptionsChangedListener.setToolType(shape);
 		setShapeActivated(shape);
+		this.shape = shape;
 	}
 
 	private void resetShapeActivated() {
@@ -84,7 +90,7 @@ public class ShapeToolOptionsListener {
 		}
 	}
 
-	public void setShapeActivated(GeometricFillTool.BaseShape shape) {
+	private void setShapeActivated(GeometricFillTool.BaseShape shape) {
 		resetShapeActivated();
 		switch (shape) {
 			case RECTANGLE:

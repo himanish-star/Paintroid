@@ -19,7 +19,6 @@
 
 package org.catrobat.paintroid.listener;
 
-import android.app.Fragment;
 import android.content.Context;
 import android.graphics.Paint;
 import android.text.Editable;
@@ -42,37 +41,32 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-public final class TextToolOptionsListener extends Fragment {
+public final class TextToolOptionsListener {
+	private static final String NOT_INITIALIZED_ERROR_MESSAGE = "TextToolDialog has not been initialized. Call init() first!";
+
+	private static TextToolOptionsListener instance;
 	private OnTextToolOptionsChangedListener onTextToolOptionsChangedListener;
 	private Context context;
-	private final EditText textEditText;
-	private final Spinner fontSpinner;
-	private final ToggleButton underlinedToggleButton;
-	private final ToggleButton italicToggleButton;
-	private final ToggleButton boldToggleButton;
-	private final Spinner textSizeSpinner;
-	private final List<String> sizes;
-	private final List<String> fonts;
-	private final NumberFormat localeNumberFormat;
+	private EditText textEditText;
 
-	public TextToolOptionsListener(Context context, View textToolOptionsView) {
+	private TextToolOptionsListener(Context context, View textToolOptionsView) {
 		this.context = context;
-
-		textEditText = (EditText) textToolOptionsView.findViewById(R.id.text_tool_dialog_input_text);
-		fontSpinner = (Spinner) textToolOptionsView.findViewById(R.id.text_tool_dialog_spinner_font);
-		underlinedToggleButton = (ToggleButton) textToolOptionsView.findViewById(R.id.text_tool_dialog_toggle_underlined);
-		italicToggleButton = (ToggleButton) textToolOptionsView.findViewById(R.id.text_tool_dialog_toggle_italic);
-		boldToggleButton = (ToggleButton) textToolOptionsView.findViewById(R.id.text_tool_dialog_toggle_bold);
-		textSizeSpinner = (Spinner) textToolOptionsView.findViewById(R.id.text_tool_dialog_spinner_text_size);
-
-		fonts = Arrays.asList(context.getResources().getStringArray(R.array.text_tool_font_array));
-		sizes = new ArrayList<>();
-		localeNumberFormat = NumberFormat.getNumberInstance(Locale.getDefault());
-
-		initializeListeners();
+		initializeListeners(textToolOptionsView);
 	}
 
-	private void initializeListeners() {
+	public static TextToolOptionsListener getInstance() {
+		if (instance == null) {
+			throw new IllegalStateException(NOT_INITIALIZED_ERROR_MESSAGE);
+		}
+		return instance;
+	}
+
+	public static void init(Context context, View textToolOptionsView) {
+		instance = new TextToolOptionsListener(context, textToolOptionsView);
+	}
+
+	private void initializeListeners(View textToolOptionsView) {
+		textEditText = (EditText) textToolOptionsView.findViewById(R.id.text_tool_dialog_input_text);
 		textEditText.addTextChangedListener(new TextWatcher() {
 			@Override
 			public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -88,8 +82,8 @@ public final class TextToolOptionsListener extends Fragment {
 				onTextToolOptionsChangedListener.setText(text);
 			}
 		});
-
 		textEditText.requestFocus();
+
 		textEditText.setOnFocusChangeListener(new View.OnFocusChangeListener() {
 			@Override
 			public void onFocusChange(View v, boolean hasFocus) {
@@ -99,8 +93,10 @@ public final class TextToolOptionsListener extends Fragment {
 			}
 		});
 
+		Spinner fontSpinner = (Spinner) textToolOptionsView.findViewById(R.id.text_tool_dialog_spinner_font);
 		FontArrayAdapter fontSpinnerAdapter = new FontArrayAdapter(context,
-				android.R.layout.simple_list_item_activated_1, fonts);
+				android.R.layout.simple_list_item_activated_1,
+				Arrays.asList(context.getResources().getStringArray(R.array.text_tool_font_array)));
 		fontSpinner.setAdapter(fontSpinnerAdapter);
 		fontSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
 			@Override
@@ -115,6 +111,7 @@ public final class TextToolOptionsListener extends Fragment {
 			}
 		});
 
+		ToggleButton underlinedToggleButton = (ToggleButton) textToolOptionsView.findViewById(R.id.text_tool_dialog_toggle_underlined);
 		underlinedToggleButton.setPaintFlags(underlinedToggleButton.getPaintFlags() | Paint.UNDERLINE_TEXT_FLAG);
 		underlinedToggleButton.setOnClickListener(new ToggleButton.OnClickListener() {
 			@Override
@@ -125,6 +122,7 @@ public final class TextToolOptionsListener extends Fragment {
 			}
 		});
 
+		ToggleButton italicToggleButton = (ToggleButton) textToolOptionsView.findViewById(R.id.text_tool_dialog_toggle_italic);
 		italicToggleButton.setOnClickListener(new ToggleButton.OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -134,6 +132,7 @@ public final class TextToolOptionsListener extends Fragment {
 			}
 		});
 
+		ToggleButton boldToggleButton = (ToggleButton) textToolOptionsView.findViewById(R.id.text_tool_dialog_toggle_bold);
 		boldToggleButton.setOnClickListener(new ToggleButton.OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -143,12 +142,15 @@ public final class TextToolOptionsListener extends Fragment {
 			}
 		});
 
-		int[] intSizes = context.getResources().getIntArray(R.array.text_tool_size_array);
-		for (int value : intSizes) {
-			sizes.add(localeNumberFormat.format(value));
+		Spinner textSizeSpinner = (Spinner) textToolOptionsView.findViewById(R.id.text_tool_dialog_spinner_text_size);
+		final List<String> textToolSizeArray = new ArrayList<>();
+		int[] valuesOfSizeArray = context.getResources().getIntArray(R.array.text_tool_size_array);
+		NumberFormat localeNumberFormat = NumberFormat.getNumberInstance(Locale.getDefault());
+		for (int value :valuesOfSizeArray) {
+			textToolSizeArray.add(localeNumberFormat.format(value));
 		}
 		ArrayAdapter<String> textSizeArrayAdapter = new ArrayAdapter<>(context,
-				android.R.layout.simple_list_item_activated_1, sizes);
+				android.R.layout.simple_list_item_activated_1, textToolSizeArray);
 		textSizeSpinner.setAdapter(textSizeArrayAdapter);
 
 		textSizeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -165,20 +167,9 @@ public final class TextToolOptionsListener extends Fragment {
 		});
 	}
 
-	public void setState(boolean bold, boolean italic, boolean underlined, String text, int textSize, String font) {
-		boldToggleButton.setChecked(bold);
-		italicToggleButton.setChecked(italic);
-		underlinedToggleButton.setChecked(underlined);
-		textEditText.setText(text);
-		textSizeSpinner.setSelection(sizes.indexOf(localeNumberFormat.format(textSize)));
-		fontSpinner.setSelection(fonts.indexOf(font));
-	}
-
 	public void hideKeyboard() {
 		InputMethodManager imm = (InputMethodManager) context.getSystemService(Context.INPUT_METHOD_SERVICE);
-		if (imm != null) {
-			imm.hideSoftInputFromWindow(textEditText.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
-		}
+		imm.hideSoftInputFromWindow(textEditText.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
 	}
 
 	public void setOnTextToolOptionsChangedListener(OnTextToolOptionsChangedListener listener) {

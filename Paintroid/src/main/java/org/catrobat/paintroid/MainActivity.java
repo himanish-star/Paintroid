@@ -89,7 +89,6 @@ public class MainActivity extends NavigationDrawerMenuActivity implements Naviga
 	private NavigationView layerSideNav;
 	private InputMethodManager inputMethodManager;
 	private boolean isKeyboardShown;
-	private Bundle toolBundle = new Bundle();
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -476,26 +475,14 @@ public class MainActivity extends NavigationDrawerMenuActivity implements Naviga
 	}
 
 	public synchronized void switchTool(Tool tool) {
-		if (tool == null) {
-			return;
-		}
-
-		Tool currentTool = PaintroidApplication.currentTool;
-		Paint tempPaint = new Paint(currentTool.getDrawPaint());
-
-		currentTool.leaveTool();
-		if (currentTool.getToolType() == tool.getToolType()) {
-			currentTool.onSaveInstanceState(toolBundle);
-			PaintroidApplication.currentTool = tool;
-			bottomBar.setTool(tool);
-			tool.onRestoreInstanceState(toolBundle);
-		} else {
-			toolBundle = new Bundle();
+		Paint tempPaint = new Paint(PaintroidApplication.currentTool.getDrawPaint());
+		if (tool != null) {
+			PaintroidApplication.currentTool.leaveTool();
 			bottomBar.setTool(tool);
 			PaintroidApplication.currentTool = tool;
+			tool.startTool();
+			PaintroidApplication.currentTool.setDrawPaint(tempPaint);
 		}
-		tool.startTool();
-		tool.setDrawPaint(tempPaint);
 	}
 
 	private void showSecurityQuestionBeforeExit() {

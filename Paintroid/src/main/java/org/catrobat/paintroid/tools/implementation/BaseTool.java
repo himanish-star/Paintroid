@@ -37,8 +37,6 @@ import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.Shader;
 import android.graphics.drawable.ColorDrawable;
-import android.os.Bundle;
-import android.support.annotation.ColorInt;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -140,21 +138,7 @@ public abstract class BaseTool extends Observable implements Tool, Observer {
 	}
 
 	@Override
-	public void onSaveInstanceState(Bundle bundle) {
-	}
-
-	@Override
-	public void onRestoreInstanceState(Bundle bundle) {
-	}
-
-	@Override
-	public void changePaintColor(@ColorInt int color) {
-		setPaintColor(color);
-		super.setChanged();
-		super.notifyObservers();
-	}
-
-	void setPaintColor(@ColorInt int color) {
+	public void changePaintColor(int color) {
 		bitmapPaint.setColor(color);
 		if (Color.alpha(color) == 0x00) {
 			bitmapPaint.setXfermode(ERASE_XFERMODE);
@@ -171,6 +155,8 @@ public abstract class BaseTool extends Observable implements Tool, Observer {
 			bitmapPaint.setXfermode(null);
 			canvasPaint.set(bitmapPaint);
 		}
+		super.setChanged();
+		super.notifyObservers();
 	}
 
 	@Override

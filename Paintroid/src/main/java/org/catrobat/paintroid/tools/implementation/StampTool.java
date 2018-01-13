@@ -28,8 +28,8 @@ import android.graphics.Point;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.os.AsyncTask;
-import android.os.Bundle;
 import android.os.CountDownTimer;
+import android.util.Log;
 import android.widget.Toast;
 
 import org.catrobat.paintroid.PaintroidApplication;
@@ -44,11 +44,9 @@ import org.catrobat.paintroid.tools.ToolType;
 
 public class StampTool extends BaseToolWithRectangleShape {
 
-	private static final boolean ROTATION_ENABLED = true;
-	private static final boolean RESPECT_IMAGE_BOUNDS = false;
+	protected static final boolean ROTATION_ENABLED = true;
+	protected static final boolean RESPECT_IMAGE_BOUNDS = false;
 	private static final long LONG_CLICK_THRESHOLD_MILLIS = 1000;
-	private static final String BUNDLE_TOOL_DRAWING_BITMAP = "BUNDLE_TOOL_DRAWING_BITMAP";
-	public static final String BUNDLE_TOOL_READY_FOR_PASTE = "BUNDLE_TOOL_READY_FOR_PASTE";
 
 	protected static CreateAndSetBitmapAsyncTask createAndSetBitmapAsync = null;
 	protected boolean readyForPaste = false;
@@ -68,7 +66,7 @@ public class StampTool extends BaseToolWithRectangleShape {
 				Config.ARGB_8888));
 
 		createAndSetBitmapAsync = new CreateAndSetBitmapAsyncTask();
-		createOverlayBitmap();
+		createOverlayButton();
 	}
 
 	public void setBitmapFromFile(Bitmap bitmap) {
@@ -76,19 +74,35 @@ public class StampTool extends BaseToolWithRectangleShape {
 		readyForPaste = true;
 	}
 
-	private void createAndSetBitmap() {
-		float boxRotation = (this.boxRotation % 90 + 90) % 90;
+	private void createAndSetBitmapRotated() {
+		float boxRotation = this.boxRotation;
+
+		while (boxRotation < 0.0) {
+			boxRotation = boxRotation + 90;
+		}
+
+		while (boxRotation > 90) {
+			boxRotation = boxRotation - 90;
+		}
 
 		double rotationRadians = Math.toRadians(boxRotation);
-		double boundingBoxX = Math.abs(boxWidth * Math.sin(rotationRadians)
-				+ boxHeight * Math.cos(rotationRadians));
+		double boundingBoxX = boxWidth * Math.sin(rotationRadians)
+				+ boxHeight * Math.cos(rotationRadians);
 
-		double boundingBoxY = Math.abs(boxWidth * Math.cos(rotationRadians)
-				+ boxHeight * Math.sin(rotationRadians));
+		double boundingBoxY = boxWidth * Math.cos(rotationRadians)
+				+ boxHeight * Math.sin(rotationRadians);
 
-		double distanceToMassCentre = Math.hypot(
-				toolPosition.x + boundingBoxX / 2,
-				toolPosition.y + boundingBoxY / 2);
+		if (boundingBoxX < 0.0) {
+			boundingBoxX = -boundingBoxX;
+		}
+
+		if (boundingBoxY < 0.0) {
+			boundingBoxY = -boundingBoxY;
+		}
+
+		double distanceToMassCentre = Math.sqrt(Math.pow(
+				toolPosition.x + boundingBoxX / 2, 2)
+				+ Math.pow(toolPosition.y + boundingBoxY / 2, 2));
 
 		Bitmap tmpBitmap = Bitmap.createBitmap((int) distanceToMassCentre * 2,
 				(int) distanceToMassCentre * 2, Config.ARGB_8888);
@@ -143,6 +157,59 @@ public class StampTool extends BaseToolWithRectangleShape {
 		readyForPaste = true;
 	}
 
+	protected void createAndSetBitmap() {
+		if (boxRotation != 0.0) {
+			createAndSetBitmapRotated();
+			return;
+		}
+
+		if (canUseOldDrawingBitmap()) {
+			setBitmap(Bitmap.createBitmap((int) boxWidth,
+					(int) boxHeight, Config.ARGB_8888));
+		}
+
+		Log.d(PaintroidApplication.TAG, "clip bitmap");
+		Point leftTopBoxBitmapcoordinates = new Point((int) toolPosition.x
+				- (int) boxWidth / 2, (int) toolPosition.y - (int) boxHeight
+				/ 2);
+		Point rightBottomBoxBitmapcoordinates = new Point(
+				(int) toolPosition.x + (int) boxWidth / 2,
+				(int) toolPosition.y + (int) boxHeight / 2);
+		try {
+			Canvas canvas = new Canvas(drawingBitmap);
+			Rect rectSource = new Rect(leftTopBoxBitmapcoordinates.x,
+					leftTopBoxBitmapcoordinates.y,
+					leftTopBoxBitmapcoordinates.x + (int) boxWidth,
+					leftTopBoxBitmapcoordinates.y + (int) boxHeight);
+			Rect rectDest = new Rect(0, 0, rightBottomBoxBitmapcoordinates.x
+					- leftTopBoxBitmapcoordinates.x,
+					rightBottomBoxBitmapcoordinates.y
+							- leftTopBoxBitmapcoordinates.y);
+
+			Bitmap copyOfCurrentDrawingSurfaceBitmap = PaintroidApplication.drawingSurface
+					.getBitmapCopy();
+			if (copyOfCurrentDrawingSurfaceBitmap == null
+					|| copyOfCurrentDrawingSurfaceBitmap.isRecycled()) {
+				return;
+			}
+
+			canvas.drawBitmap(copyOfCurrentDrawingSurfaceBitmap, rectSource,
+					rectDest, null);
+			copyOfCurrentDrawingSurfaceBitmap.recycle();
+			readyForPaste = true;
+
+			Log.d(PaintroidApplication.TAG, "created bitmap");
+		} catch (Exception e) {
+			Log.e(PaintroidApplication.TAG,
+					"error stamping bitmap " + e.getMessage());
+
+			if (drawingBitmap != null) {
+				drawingBitmap.recycle();
+				drawingBitmap = null;
+			}
+		}
+	}
+
 	@Override
 	public boolean handleDown(PointF coordinate) {
 		super.handleDown(coordinate);
@@ -159,7 +226,6 @@ public class StampTool extends BaseToolWithRectangleShape {
 							&& isCoordinateInsideBox(previousEventCoordinate)) {
 						longClickPerformed = true;
 						highlightBoxWhenClickInBox(true);
-						PaintroidApplication.drawingSurface.refreshDrawingSurface();
 						onLongClickInBox();
 					}
 				}
@@ -244,24 +310,11 @@ public class StampTool extends BaseToolWithRectangleShape {
 	}
 
 	@Override
+	protected void drawToolSpecifics(Canvas canvas) {
+	}
+
+	@Override
 	public void resetInternalState() {
-	}
-
-	@Override
-	public void onSaveInstanceState(Bundle bundle) {
-		super.onSaveInstanceState(bundle);
-		bundle.putParcelable(BUNDLE_TOOL_DRAWING_BITMAP, drawingBitmap);
-		bundle.putBoolean(BUNDLE_TOOL_READY_FOR_PASTE, readyForPaste);
-	}
-
-	@Override
-	public void onRestoreInstanceState(Bundle bundle) {
-		super.onRestoreInstanceState(bundle);
-		readyForPaste = bundle.getBoolean(BUNDLE_TOOL_READY_FOR_PASTE, readyForPaste);
-		Bitmap bitmap = bundle.getParcelable(BUNDLE_TOOL_DRAWING_BITMAP);
-		if (bitmap != null) {
-			drawingBitmap = bitmap;
-		}
 	}
 
 	private boolean canUseOldDrawingBitmap() {
@@ -293,7 +346,6 @@ public class StampTool extends BaseToolWithRectangleShape {
 		@Override
 		protected void onPostExecute(Void nothing) {
 			IndeterminateProgressDialog.getInstance().dismiss();
-			PaintroidApplication.drawingSurface.refreshDrawingSurface();
 		}
 	}
 }

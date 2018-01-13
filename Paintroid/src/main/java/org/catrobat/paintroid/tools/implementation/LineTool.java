@@ -49,12 +49,8 @@ public class LineTool extends BaseTool {
 			return;
 		}
 
-		setPaintColor(canvasPaint.getColor());
+		changePaintColor(canvasPaint.getColor());
 
-		canvas.save();
-		canvas.clipRect(0, 0,
-				PaintroidApplication.drawingSurface.getBitmapWidth(),
-				PaintroidApplication.drawingSurface.getBitmapHeight());
 		if (canvasPaint.getAlpha() == 0x00) {
 			canvasPaint.setColor(Color.BLACK);
 			canvas.drawLine(initialEventCoordinate.x,
@@ -66,7 +62,6 @@ public class LineTool extends BaseTool {
 					initialEventCoordinate.y, currentCoordinate.x,
 					currentCoordinate.y, bitmapPaint);
 		}
-		canvas.restore();
 	}
 
 	@Override
